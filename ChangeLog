@@ -1,4 +1,149 @@
+2013-01-31  Todd C. Miller  <Todd.Miller@courtesan.com>
 
+	* NEWS:
+	Clarify ttyname changes.
+	[9963ed81732d]
+
+	* NEWS:
+	Add 1.8.6p6
+	[162ea7fae117]
+
+	* src/ttyname.c:
+	Remove ttyname() fall back code on systems where we can query the
+	kernel for the tty device via /proc or sysctl(). If there is no
+	controlling tty, it is better to just treat the tty as unknown
+	rather than to blindly use what is hooked up to std{in,out,err}.
+	[2f3225a2a4a4]
+
+2013-01-24  Todd C. Miller  <Todd.Miller@courtesan.com>
+
+	* plugins/sudoers/iolog.c:
+	Add __dso_public to extern declaration of declaration to match
+	actual definition.
+	[e16ecb5c6677]
+
+	* configure, configure.in:
+	Sudo 1.8.6p5
+	[8d7c8bd159c5]
+
+	* NEWS:
+	Add 1.8.6p5
+	[1cb9b7c4f626]
+
+2013-01-23  Todd C. Miller  <Todd.Miller@courtesan.com>
+
+	* plugins/sudoers/visudo.c:
+	Fix potential stack overflow due to infinite recursion in alias
+	cycle detection. From Daniel Kopecek.
+	[77f2228877bc]
+
+2013-01-18  Todd C. Miller  <Todd.Miller@courtesan.com>
+
+	* compat/getgrouplist.c, config.h.in, configure, configure.in:
+	Use _getgroupsbymember() on Solaris to get the groups list. Fixes
+	performance problems with the getgroupslist() compat on Solaris
+	systems with network-based group databases.
+	[6ab76bea5ea4]
+
+2013-01-13  Todd C. Miller  <Todd.Miller@courtesan.com>
+
+	* src/sudo.c:
+	Add missing call to save_signals().
+	[708b8db3b30e]
+
+2013-01-11  Todd C. Miller  <Todd.Miller@courtesan.com>
+
+	* configure, configure.in:
+	Use -fstack-protector-all in preference to -fstack-protector where
+	supported.
+	[52ac4eadf5c9]
+
+2013-01-10  Todd C. Miller  <Todd.Miller@courtesan.com>
+
+	* configure, configure.in:
+	Only test for -fstack-protector and -fvisibility=hidden on GNU
+	compatible compilers.
+	[5f31c5b4edc9]
+
+2013-01-03  Todd C. Miller  <Todd.Miller@courtesan.com>
+
+	* NEWS:
+	Add Sudo 1.8.6p4
+	[88358d481baa]
+
+	* configure, configure.in:
+	Sudo 1.8.6p4
+	[e8032237c4b1]
+
+	* common/Makefile.in, compat/Makefile.in, configure, configure.in,
+	plugins/sample/Makefile.in, plugins/sample_group/Makefile.in,
+	plugins/sudoers/Makefile.in, plugins/system_group/Makefile.in,
+	src/Makefile.in:
+	Break out stack smashing protector options into SSP_CFLAGS and
+	SSP_LDFLAGS so we can use it everywhere (unlike LT_LDFLAGS).
+	[9c3662776afa]
+
+2013-01-01  Todd C. Miller  <Todd.Miller@courtesan.com>
+
+	* doc/CONTRIBUTORS, plugins/sudoers/redblack.c:
+	In rbrepair(), make sure we never try to change the color of the
+	sentinel node, which is the first entry, not the root. From Michael
+	King
+	[24ebb817e1ee]
+
+2012-12-27  Todd C. Miller  <Todd.Miller@courtesan.com>
+
+	* configure, configure.in:
+	Disable PIE on FreeBSD/ia64, otherwise sudo will segfault.
+	[ce07ef64d410]
+
+2012-11-25  Todd C. Miller  <Todd.Miller@courtesan.com>
+
+	* plugins/sudoers/visudo.c:
+	Avoid NULL deref for unknown Defaults in strict mode.
+	[4c2d9717d91e]
+
+2012-11-06  Todd C. Miller  <Todd.Miller@courtesan.com>
+
+	* plugins/sudoers/audit.c, plugins/sudoers/logging.c,
+	plugins/sudoers/logging.h, plugins/sudoers/sudoers.c:
+	Do not inform the user that the command was not permitted by the
+	policy if they do not successfully authenticate. This is a
+	regression introduced in sudo 1.8.6.
+	[e5c1e760954e]
+
+	* src/parse_args.c:
+	The -a option should be #ifdef HAVE_BSD_AUTH_H, not -A.
+	[4e112e7da105]
+
+2012-10-26  Todd C. Miller  <Todd.Miller@courtesan.com>
+
+	* doc/CONTRIBUTORS, plugins/sudoers/sudo_nss.c:
+	Allow sudo to be build with sss support without also including ldap
+	support. From Stephane Graber.
+	[7e0bd9191589]
+
+2012-09-24  Todd C. Miller  <Todd.Miller@courtesan.com>
+
+	* src/exec_pty.c:
+	Fix running commands that need the terminal in the background when
+	I/O logging is enabled. E.g. "sudo vi &". When the command is
+	foregrounded, it will now resume properly.
+	[c30ec73a5da8]
+
+2012-11-13  Todd C. Miller  <Todd.Miller@courtesan.com>
+
+	* plugins/sudoers/Makefile.in:
+	Fold preinstall into install-plugin and pass the path to the plugin
+	binary to the preinstall command.
+	[994f8f58495e]
+
+2012-11-06  Todd C. Miller  <Todd.Miller@courtesan.com>
+
+	* plugins/sudoers/Makefile.in:
+	Add preinstall target that runs SUDO_PREINSTALL_CMD. Used to fixup
+	the rpath in HP-UX SOM shared libraries for the LDAP libs.
+	[685796ea58fe]
 
 	* NEWS, configure, configure.in:
 	sudo 1.8.6p3
