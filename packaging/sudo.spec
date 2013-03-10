@@ -7,6 +7,7 @@ Group:          System/Base
 Url:            http://www.sudo.ws/
 Source0:        http://sudo.ws/sudo/dist/%{name}-%{version}.tar.gz
 Source1:        sudo.pamd
+Source2:        tizen.conf
 BuildRequires:  groff
 BuildRequires:  pam-devel
 Requires(pre):  coreutils
@@ -56,6 +57,7 @@ make %{?_smp_mflags}
 %make_install
 install -d -m 755 %{buildroot}%{_sysconfdir}/pam.d
 install -m 644 %{SOURCE1} %{buildroot}%{_sysconfdir}/pam.d/sudo
+install -m 644 %{SOURCE2} %{buildroot}%{_sysconfdir}/sudoers.d
 rm -f %{buildroot}%{_bindir}/sudoedit
 ln -sf %{_bindir}/sudo %{buildroot}%{_bindir}/sudoedit
 rm -f %{buildroot}%{_docdir}/%{name}/sample.pam
@@ -70,10 +72,13 @@ cat sudoers.lang >> %{name}.lang
 chmod 0440 %{_sysconfdir}/sudoers
 
 
-%files -f %{name}.lang
+%lang_package
+
+%files 
 %defattr(-,root,root)
 %config(noreplace) %attr(0440,root,root) %{_sysconfdir}/sudoers
 %dir %{_sysconfdir}/sudoers.d
+%{_sysconfdir}/sudoers.d/*
 %config %{_sysconfdir}/pam.d/sudo
 %attr(4755,root,root) %{_bindir}/sudo
 %{_bindir}/sudoedit
