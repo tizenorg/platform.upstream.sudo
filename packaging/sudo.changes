@@ -1,3 +1,6 @@
+* Sun Mar 10 2013 Anas Nashif <anas.nashif@intel.com> submit/trunk/20130221.155351@4a826c1
+- Add configuration file for tizen
+
 * Thu Feb 21 2013 Anas Nashif <anas.nashif@intel.com> upstream/1.8.6p6@919169c
 - Initial Packaging
 
