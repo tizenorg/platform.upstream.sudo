@@ -7,7 +7,7 @@ Group:          System/Base
 Url:            http://www.sudo.ws/
 Source0:        http://sudo.ws/sudo/dist/%{name}-%{version}.tar.gz
 Source1:        sudo.pamd
-Source2:        tizen.conf
+Source2:        tizen_conf
 BuildRequires:  groff
 BuildRequires:  pam-devel
 Requires(pre):  coreutils
@@ -36,21 +36,21 @@ F_PIE=-fpie
 export CFLAGS="%{optflags} -Wall $F_PIE -DLDAP_DEPRECATED"
 export LDFLAGS="-pie"
 %configure \
-    --libexecdir=%{_libexecdir}/sudo \
-    --docdir=%{_docdir}/%{name} \
-    --with-noexec=%{_libexecdir}/sudo/sudo_noexec.so \
-    --with-pam \
-    --with-logfac=auth \
-    --without-insults \
-    --with-ignore-dot \
-    --with-tty-tickets \
-    --enable-shell-sets-home \
-    --enable-warnings \
-    --with-sudoers-mode=0440 \
-    --with-env-editor \
-    --without-secure-path \
-    --with-passprompt='%%p\x27s password:' \
-    --with-timedir=%{_localstatedir}/lib/sudo
+--libexecdir=%{_libexecdir}/sudo \
+--docdir=%{_docdir}/%{name} \
+--with-noexec=%{_libexecdir}/sudo/sudo_noexec.so \
+--with-pam \
+--with-logfac=auth \
+--without-insults \
+--with-ignore-dot \
+--with-tty-tickets \
+--enable-shell-sets-home \
+--enable-warnings \
+--with-sudoers-mode=0440 \
+--with-env-editor \
+--without-secure-path \
+--with-passprompt='%%p\x27s password:' \
+--with-timedir=%{_localstatedir}/lib/sudo
 make %{?_smp_mflags}
 
 %install
