@@ -7,6 +7,7 @@ Group:          System/Base
 Url:            http://www.sudo.ws/
 Source0:        http://sudo.ws/sudo/dist/%{name}-%{version}.tar.gz
 Source1:        sudo.pamd
+Source1001: 	sudo.manifest
 BuildRequires:  groff
 BuildRequires:  pam-devel
 Requires(pre):  coreutils
@@ -29,6 +30,7 @@ These header files are needed for building of sudo plugins.
 
 %prep
 %setup -q
+cp %{SOURCE1001} .
 
 %build
 F_PIE=-fpie
@@ -73,6 +75,7 @@ chmod 0440 %{_sysconfdir}/sudoers
 %lang_package
 
 %files 
+%manifest %{name}.manifest
 %defattr(-,root,root)
 %config(noreplace) %attr(0440,root,root) %{_sysconfdir}/sudoers
 %dir %{_sysconfdir}/sudoers.d
@@ -87,6 +90,7 @@ chmod 0440 %{_sysconfdir}/sudoers
 %{_mandir}/man?/*
 
 %files devel
+%manifest %{name}.manifest
 %defattr(-,root,root)
 %{_includedir}/sudo_plugin.h
 
