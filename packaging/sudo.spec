@@ -1,5 +1,5 @@
 Name:           sudo
-Version:        1.8.6p6
+Version:        1.8.7
 Release:        0
 Summary:        Execute some commands as root
 License:        ISC
