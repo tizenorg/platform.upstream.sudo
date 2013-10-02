@@ -1,3 +1,6 @@
+* Thu Sep 12 2013 Michael Ikey Doherty <michael.i.doherty@intel.com> 301c6d9
+- Update to upstream version 1.8.7, addressing CVE-2013-1776
+
 * Sun Mar 10 2013 Anas Nashif <anas.nashif@intel.com> submit/trunk/20130221.155351@4a826c1
 - Add configuration file for tizen
 
