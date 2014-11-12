@@ -53,6 +53,7 @@
 #include <fcntl.h>
 
 #include "sudo.h"
+#include "sudo_plugin.h"
 
 static volatile sig_atomic_t signo[NSIG];
 
@@ -70,7 +71,7 @@ tgetpass(const char *prompt, int timeout, int flags)
     sigaction_t savetstp, savettin, savettou, savepipe;
     char *pass;
     static const char *askpass;
-    static char buf[SUDO_PASS_MAX + 1];
+    static char buf[SUDO_CONV_REPL_MAX + 1];
     int i, input, output, save_errno, neednl = 0, need_restart;
     debug_decl(tgetpass, SUDO_DEBUG_CONV)
 
@@ -86,7 +87,7 @@ tgetpass(const char *prompt, int timeout, int flags)
     if (!ISSET(flags, TGP_STDIN|TGP_ECHO|TGP_ASKPASS|TGP_NOECHO_TRY) &&
 	!tty_present()) {
 	if (askpass == NULL || getenv_unhooked("DISPLAY") == NULL) {
-	    warningx(_("no tty present and no askpass program specified"));
+	    warningx(U_("no tty present and no askpass program specified"));
 	    debug_return_str(NULL);
 	}
 	SET(flags, TGP_ASKPASS);
@@ -95,7 +96,7 @@ tgetpass(const char *prompt, int timeout, int flags)
     /* If using a helper program to get the password, run it instead. */
     if (ISSET(flags, TGP_ASKPASS)) {
 	if (askpass == NULL || *askpass == '\0')
-	    fatalx(_("no askpass program specified, try setting SUDO_ASKPASS"));
+	    fatalx(U_("no askpass program specified, try setting SUDO_ASKPASS"));
 	debug_return_str_masked(sudo_askpass(askpass, prompt));
     }
 
@@ -127,7 +128,7 @@ restart:
      * Catch signals that would otherwise cause the user to end
      * up with echo turned off in the shell.
      */
-    zero_bytes(&sa, sizeof(sa));
+    memset(&sa, 0, sizeof(sa));
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_INTERRUPT;	/* don't restart system calls */
     sa.sa_handler = tgetpass_handler;
@@ -207,17 +208,17 @@ restore:
 static char *
 sudo_askpass(const char *askpass, const char *prompt)
 {
-    static char buf[SUDO_PASS_MAX + 1], *pass;
+    static char buf[SUDO_CONV_REPL_MAX + 1], *pass;
     sigaction_t sa, saved_sa_pipe;
     int pfd[2];
     pid_t pid;
     debug_decl(sudo_askpass, SUDO_DEBUG_CONV)
 
     if (pipe(pfd) == -1)
-	fatal(_("unable to create pipe"));
+	fatal(U_("unable to create pipe"));
 
     if ((pid = fork()) == -1)
-	fatal(_("unable to fork"));
+	fatal(U_("unable to fork"));
 
     if (pid == 0) {
 	/* child, point stdout to output side of the pipe and exec askpass */
@@ -228,21 +229,21 @@ sudo_askpass(const char *askpass, const char *prompt)
 	if (setuid(ROOT_UID) == -1)
 	    warning("setuid(%d)", ROOT_UID);
 	if (setgid(user_details.gid)) {
-	    warning(_("unable to set gid to %u"), (unsigned int)user_details.gid);
+	    warning(U_("unable to set gid to %u"), (unsigned int)user_details.gid);
 	    _exit(255);
 	}
 	if (setuid(user_details.uid)) {
-	    warning(_("unable to set uid to %u"), (unsigned int)user_details.uid);
+	    warning(U_("unable to set uid to %u"), (unsigned int)user_details.uid);
 	    _exit(255);
 	}
 	closefrom(STDERR_FILENO + 1);
 	execl(askpass, askpass, prompt, (char *)NULL);
-	warning(_("unable to run %s"), askpass);
+	warning(U_("unable to run %s"), askpass);
 	_exit(255);
     }
 
     /* Ignore SIGPIPE in case child exits prematurely */
-    zero_bytes(&sa, sizeof(sa));
+    memset(&sa, 0, sizeof(sa));
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_INTERRUPT;
     sa.sa_handler = SIG_IGN;

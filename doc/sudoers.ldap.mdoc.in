@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2003-2013 Todd C. Miller <Todd.Miller@courtesan.com>
+.\" Copyright (c) 2003-2014 Todd C. Miller <Todd.Miller@courtesan.com>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd April 25, 2013
+.Dd February 7, 2014
 .Dt SUDOERS.LDAP @mansectsu@
 .Os Sudo @PACKAGE_VERSION@
 .Sh NAME
@@ -76,18 +76,18 @@ is no need for a specialized tool to check syntax.
 Another major difference between LDAP and file-based
 .Em sudoers
 is that in LDAP,
-.Nm sudo Ns No -specific
+.Nm sudo Ns -specific
 Aliases are not supported.
 .Pp
 For the most part, there is really no need for
-.Nm sudo Ns No -specific
+.Nm sudo Ns -specific
 Aliases.
 Unix groups, non-Unix groups (via the
 .Em group_plugin )
 or user netgroups can be used in place of User_Aliases and Runas_Aliases.
 Host netgroups can be used in place of Host_Aliases.
 Since groups and netgroups can also be stored in LDAP there is no real need for
-.Nm sudo Ns No -specific
+.Nm sudo Ns -specific
 aliases.
 .Pp
 Cmnd_Aliases are not really required either since it is possible
@@ -421,7 +421,7 @@ sudoHost: !web01
 .Ed
 .Ss Sudoers schema
 In order to use
-.Nm sudo Ns No 's
+.Nm sudo Ns 's
 LDAP support, the
 .Nm sudo
 schema must be
@@ -451,7 +451,7 @@ Sudo reads the
 file for LDAP-specific configuration.
 Typically, this file is shared between different LDAP-aware clients.
 As such, most of the settings are not
-.Nm sudo Ns No -specific.
+.Nm sudo Ns -specific.
 Note that
 .Nm sudo
 parses
@@ -482,6 +482,11 @@ are honored.
 Configuration options are listed below in upper case but are parsed
 in a case-independent manner.
 .Pp
+The pound sign
+.Pq Ql #
+is used to indicate a comment.
+Both the comment character and any text after it, up to the end of
+the line, are ignored.
 Long lines can be continued with a backslash
 .Pq Ql \e
 as the last character on the line.
@@ -559,9 +564,9 @@ The
 parameter specifies the amount of time, in seconds, to wait while trying
 to connect to an LDAP server.
 If multiple
-.Sy URI Ns No s
+.Sy URI Ns s
 or
-.Sy HOST Ns No s
+.Sy HOST Ns s
 are specified, this is the amount of time to wait before trying
 the next one in the list.
 .It Sy NETWORK_TIMEOUT Ar seconds
@@ -599,6 +604,11 @@ form
 .Li attribute=value
 or
 .Li (&(attribute=value)(attribute2=value2)) .
+The default search filter is:
+.Li objectClass=sudoRole .
+If
+.Ar ldap_filter
+is omitted, no search filter will be used.
 .It Sy SUDOERS_TIMED Ar on/true/yes/off/false/no
 Whether or not to evaluate the
 .Li sudoNotBefore
@@ -760,7 +770,7 @@ The key type depends on the LDAP libraries used.
 .It Netscape-derived:
 .Li tls_key /var/ldap/key3.db
 .It Tivoli Directory Server:
-.Li tls_cert /usr/ldap/ldapkey.kdb
+.Li tls_key /usr/ldap/ldapkey.kdb
 .El
 When using Tivoli LDAP libraries, this file may also contain
 Certificate Authority and client certificates and may be encrypted.
@@ -769,6 +779,19 @@ The
 .Sy TLS_KEYPW
 contains the password used to decrypt the key database on clients
 using the Tivoli Directory Server LDAP library.
+This should be a simple string without quotes.
+The password may not include the comment character
+.Pq Ql #
+and escaping of special characters with a backslash
+.Pq Ql \e
+is not supported.
+If this option is used,
+.Pa @ldap_conf@
+must not be world-readable to avoid exposing the password.
+Alternately, a
+.Em stash file
+can be used to store the password in encrypted form (see below).
+.Pp
 If no
 .Sy TLS_KEYPW
 is specified, a
@@ -788,6 +811,10 @@ The default
 .Li ldapkey.kdb
 that ships with Tivoli Directory Server is encrypted with the password
 .Li ssl_password .
+The
+.Em gsk8capicmd
+utility can be used to manage the key database and create a
+.Em stash file .
 This option is only supported by the Tivoli LDAP libraries.
 .It Sy TLS_RANDFILE Ar file name
 The

@@ -55,6 +55,7 @@
 
 #include <pathnames.h>
 #include "sudo_plugin.h"
+#include "sudo_util.h"
 #include "missing.h"
 
 /*
@@ -138,11 +139,9 @@ policy_open(unsigned int version, sudo_conv_t conversation,
 	if (strncmp(*ui, "runas_group=", sizeof("runas_group=") - 1) == 0) {
 	    runas_group = *ui + sizeof("runas_group=") - 1;
 	}
-#if !defined(HAVE_GETPROGNAME) && !defined(HAVE___PROGNAME)
 	if (strncmp(*ui, "progname=", sizeof("progname=") - 1) == 0) {
-	    setprogname(*ui + sizeof("progname=") - 1);
+	    initprogname(*ui + sizeof("progname=") - 1);
 	}
-#endif
 	/* Check to see if sudo was called as sudoedit or with -e flag. */
 	if (strncmp(*ui, "sudoedit=", sizeof("sudoedit=") - 1) == 0) {
 	    if (strcasecmp(*ui + sizeof("sudoedit=") - 1, "true") == 0)

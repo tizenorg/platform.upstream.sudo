@@ -31,10 +31,11 @@
 # include "compat/stdbool.h"
 #endif /* HAVE_STDBOOL_H */
 
+#include "gettext.h"		/* must be included before missing.h */
+
 #include "missing.h"
 #include "alloc.h"
-#include "error.h"
-#include "gettext.h"
+#include "fatal.h"
 #include "sudo_conf.h"
 #include "sudo_debug.h"
 #include "sudo_exec.h"
@@ -46,7 +47,7 @@ int
 main(int argc, char *argv[], char *envp[])
 {
     char *cp, *cmnd;
-    int noexec = 0;
+    bool login_shell, noexec = false;
     debug_decl(main, SUDO_DEBUG_MAIN)
 
     setlocale(LC_ALL, "");
@@ -54,10 +55,13 @@ main(int argc, char *argv[], char *envp[])
     textdomain(PACKAGE_NAME);
 
     if (argc < 2)
-	fatalx(_("requires at least one argument"));
+	fatalx(U_("requires at least one argument"));
 
     /* Read sudo.conf. */
     sudo_conf_read(NULL);
+
+    /* If the first char of argv[0] is '-', we are running as a login shell. */
+    login_shell = argv[0][0] == '-';
 
     /* If argv[0] ends in -noexec, pass the flag to sudo_execve() */
     if ((cp = strrchr(argv[0], '-')) != NULL && cp != argv[0])
@@ -69,13 +73,13 @@ main(int argc, char *argv[], char *envp[])
     cmnd = estrdup(argv[0]);
 
     /* If invoked as a login shell, modify argv[0] accordingly. */
-    if (argv[-1][0] == '-') {
+    if (login_shell) {
 	if ((cp = strrchr(argv[0], '/')) == NULL)
 	    cp = argv[0];
 	*cp = '-';
     }
     sudo_execve(cmnd, argv, envp, noexec);
-    warning(_("unable to execute %s"), argv[0]);
+    warning(U_("unable to execute %s"), argv[0]);
     sudo_debug_exit_int(__func__, __FILE__, __LINE__, sudo_debug_subsys, EXIT_FAILURE);                
     _exit(EXIT_FAILURE);
 }

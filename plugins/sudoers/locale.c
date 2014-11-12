@@ -38,11 +38,13 @@
 # include "compat/stdbool.h"
 #endif /* HAVE_STDBOOL_H */
 
+#define DEFAULT_TEXT_DOMAIN	"sudoers"
+#include "gettext.h"		/* must be included before missing.h */
+
 #include "missing.h"
-#include "error.h"
+#include "fatal.h"
 #include "alloc.h"
 #include "logging.h"
-#include "gettext.h"
 
 static int current_locale = SUDOERS_LOCALE_USER;
 static char *user_locale;
@@ -108,16 +110,17 @@ sudoers_setlocale(int newlocale, int *prevlocale)
     return res ? true : false;
 }
 
-static int warning_locale;
-
-void
-warning_set_locale(void)
+#ifdef HAVE_LIBINTL_H
+char *
+warning_gettext(const char *msgid)
 {
+    int warning_locale;
+    char *msg;
+
     sudoers_setlocale(SUDOERS_LOCALE_USER, &warning_locale);
-}
-
-void
-warning_restore_locale(void)
-{
+    msg = gettext(msgid);
     sudoers_setlocale(warning_locale, NULL);
+
+    return msg;
 }
+#endif /* HAVE_LIBINTL_H */

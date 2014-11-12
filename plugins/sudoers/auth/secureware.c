@@ -86,8 +86,8 @@ sudo_secureware_verify(struct passwd *pw, char *pass, sudo_auth *auth)
 	    epass = bigcrypt(pass, pw_epasswd);
 	else if (crypt_type == AUTH_CRYPT_CRYPT16)
 	    epass = crypt(pass, pw_epasswd);
-    }
 # endif /* HAVE_DISPCRYPT */
+    }
 #elif defined(HAVE_BIGCRYPT)
     epass = bigcrypt(pass, pw_epasswd);
 #endif /* __alpha */
@@ -106,7 +106,7 @@ sudo_secureware_cleanup(pw, auth)
     debug_decl(sudo_secureware_cleanup, SUDO_DEBUG_AUTH)
 
     if (pw_epasswd != NULL) {
-	zero_bytes(pw_epasswd, strlen(pw_epasswd));
+	memset_s(pw_epasswd, SUDO_CONV_REPL_MAX, 0, strlen(pw_epasswd));
 	efree(pw_epasswd);
     }
     debug_return_int(AUTH_SUCCESS);

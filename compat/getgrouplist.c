@@ -69,9 +69,10 @@ getgrouplist(const char *name, gid_t basegid, gid_t *groups, int *ngroupsp)
     aix_setauthdb((char *) name);
 #endif
     if ((grset = getgrset(name)) != NULL) {
+	const char *errstr;
 	for (cp = strtok(grset, ","); cp != NULL; cp = strtok(NULL, ",")) {
-	    gid = atoi(cp);
-	    if (gid != basegid) {
+	    gid = atoid(cp, NULL, NULL, &errstr);
+	    if (errstr == NULL && gid != basegid) {
 		if (ngroups == grpsize)
 		    goto done;
 		groups[ngroups++] = gid;
@@ -92,10 +93,6 @@ done:
 
 #elif defined(HAVE_NSS_SEARCH)
 
-#ifndef GID_MAX
-# define GID_MAX	UID_MAX
-#endif
-
 #ifndef ALIGNBYTES
 # define ALIGNBYTES	(sizeof(long) - 1L)
 #endif
@@ -105,6 +102,43 @@ done:
 
 extern void _nss_initf_group(nss_db_params_t *);
 
+static id_t
+strtoid(const char *p, int *errval)
+{
+    char *ep;
+    id_t rval = 0;
+
+    errno = 0;
+    if (*p == '-') {
+	long lval = strtol(p, &ep, 10);
+	if (ep == p || *ep != '\0') {
+	    *errval = EINVAL;
+	    goto done;
+	}
+	if ((errno == ERANGE && (lval == LONG_MAX || lval == LONG_MIN)) ||
+	    (lval > INT_MAX || lval < INT_MIN)) {
+	    *errval = ERANGE;
+	    goto done;
+	}
+	rval = (id_t)lval;
+	*errval = 0;
+    } else {
+	unsigned long ulval = strtoul(p, &ep, 10);
+	if (ep == p || *ep != '\0') {
+	    *errval = EINVAL;
+	    goto done;
+	}
+	if ((errno == ERANGE && ulval == ULONG_MAX) || ulval > UINT_MAX) {
+	    *errval = ERANGE;
+	    goto done;
+	}
+	rval = (id_t)ulval;
+	*errval = 0;
+    }
+done:
+    return rval;
+}
+
 /*
  * Convert a groups file string (instr) to a struct group (ent) using
  * buf for storage.  
@@ -113,10 +147,10 @@ static int
 str2grp(const char *instr, int inlen, void *ent, char *buf, int buflen)
 {
     struct group *grp = ent;
-    char *cp, *ep, *fieldsep = buf;
+    char *cp, *fieldsep = buf;
     char **gr_mem, **gr_end;
-    int yp = 0;
-    unsigned long gid;
+    int errval, yp = 0;
+    id_t id;
 
     /* Must at least have space to copy instr -> buf. */
     if (inlen >= buflen)
@@ -150,21 +184,23 @@ str2grp(const char *instr, int inlen, void *ent, char *buf, int buflen)
     if ((fieldsep = strchr(cp = fieldsep, ':')) == NULL)
 	return yp ? NSS_STR_PARSE_SUCCESS : NSS_STR_PARSE_PARSE;
     *fieldsep++ = '\0';
-    gid = strtoul(cp, &ep, 10);
-    if (*cp == '\0' || *ep != '\0')
+    id = strtoid(cp, &errval);
+    if (errval != 0) {
+	/*
+	 * A range error is always a fatal error, but ignore garbage
+	 * at the end of YP entries since it has no meaning.
+	 */
+	if (errval == ERANGE)
+	    return NSS_STR_PARSE_ERANGE;
 	return yp ? NSS_STR_PARSE_SUCCESS : NSS_STR_PARSE_PARSE;
-#ifdef GID_NOBODY
-    if (*cp == '-' && gid != 0) {
-	/* Negative gids get mapped to nobody on Solaris. */
-	grp->gr_gid = GID_NOBODY;
-    } else
-#endif
-    if ((errno == ERANGE && gid == ULONG_MAX) ||
-	gid > GID_MAX || gid != (gid_t)gid) {
-	return NSS_STR_PARSE_ERANGE;
-    } else {
-	grp->gr_gid = (gid_t)gid;
     }
+#ifdef GID_NOBODY
+    /* Negative gids get mapped to nobody on Solaris. */
+    if (*cp == '-' && id != 0)
+	grp->gr_gid = GID_NOBODY;
+    else
+#endif
+	grp->gr_gid = (gid_t)id;
 
     /* Store group members, taking care to use proper alignment. */
     grp->gr_mem = NULL;
@@ -282,7 +318,7 @@ getgrouplist(const char *name, gid_t basegid, gid_t *groups, int *ngroupsp)
 
     setgrent();
     while ((grp = getgrent()) != NULL) {
-	if (grp->gr_gid == basegid)
+	if (grp->gr_gid == basegid || grp->gr_mem == NULL)
 	    continue;
 
 	for (i = 0; grp->gr_mem[i] != NULL; i++) {

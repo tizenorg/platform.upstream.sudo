@@ -122,14 +122,28 @@ Directory and file names:
   --docdir=DIR
 	Install other sudo documentation in DIR [DATAROOTDIR/doc/sudo]
 
-  --with-plugindir=PATH
+  --with-plugindir=DIR
 	Set the directory that sudo looks in to find the policy and I/O
 	logging plugins.  Defaults to the LIBEXEC/sudo.
 
-  --with-timedir=PATH
-        Use PATH to store the sudo time stamp files.  By default,
-        the first existing directory in the following list is used:
-        /var/db, /var/lib, /var/adm, /usr/adm.
+  --with-rundir=DIR
+        Set the directory to be used for sudo-specific files that
+        do not survive a system reboot.  This is typically where
+        the time stamp directory is located.  By default, configure
+        will use the first existing directory in the following list:
+	    /var/run, /var/db, /var/lib, /var/adm, /usr/adm
+	This directory should be cleared when the system reboots.
+	On systems that lack /var/run, the default rundir and vardir
+	may be the same.  In this case, only the ts directory inside
+	the rundir needs to be cleared at boot time.
+
+  --with-vardir=DIR
+        Set the directory to be used for sudo-specific files that
+        survive a system reboot.  This is typically where the lecture
+        status directory is stored.  By default, configure will use
+        the first existing directory in the following list:
+	    /var/db, /var/lib, /var/adm, /usr/adm
+	This directory should not be cleared when the system boots.
 
 Compilation options:
   --disable-hardening
@@ -150,6 +164,13 @@ Compilation options:
         option may be needed on some Linux systems where PIE binaries
         are not fully supported.
 
+  --disable-poll
+        Use select() instead of poll() in the event loop.  By default,
+	sudo will use poll() on systems that support it.  Some systems
+	have a broken poll() implementation and need to use select instead.
+	On Mac OS X, select() is always used since its poll() doesn't
+	support devices.
+
   --disable-rpath
         By default, configure will use -Rpath in addition to -Lpath
         when passing library paths to the loader.  This option will
@@ -163,6 +184,14 @@ Compilation options:
         sudoers policy and I/O plugins are embedded in the sudo
         binary itself.  This will also disable the noexec option
         as it too relies on dynamic shared object support.
+
+  --enable-static-sudoers
+        By default, the sudoers plugin is built and installed as a
+        dynamic shared object.  When the --enable-static-sudoers
+        option is specified, the sudoers plugin is compiled directly
+        into the sudo binary.  Unlike --disable-shared, this does
+        not prevent other plugins from being used and the noexec
+        option will continue to function.
 
   --enable-zlib[=location]
 	Enable the use of the zlib compress library when storing

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Todd C. Miller <Todd.Miller@courtesan.com>
+ * Copyright (c) 2013 Todd C. Miller <Todd.Miller@courtesan.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -21,18 +21,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define DEFAULT_TEXT_DOMAIN	"sudo"
+#include "gettext.h"		/* must be included before missing.h */
+
 #include "missing.h"
-#include "error.h"
+#include "fatal.h"
 
+#ifdef HAVE_LIBINTL_H
 /* No need to swap locales in the front end. */
-void
-warning_set_locale(void)
+char *
+warning_gettext(const char *msgid)
 {
-    return;
+    return gettext(msgid);
 }
-
-void
-warning_restore_locale(void)
-{
-    return;
-}
+#endif /* HAVE_LIBINTL_H */

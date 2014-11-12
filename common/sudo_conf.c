@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 Todd C. Miller <Todd.Miller@courtesan.com>
+ * Copyright (c) 2009-2014 Todd C. Miller <Todd.Miller@courtesan.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -45,28 +45,27 @@
 #include <errno.h>
 #include <limits.h>
 
+#define DEFAULT_TEXT_DOMAIN	"sudo"
+#include "gettext.h"		/* must be included before missing.h */
+
 #define SUDO_ERROR_WRAP	0
 
 #include "missing.h"
 #include "alloc.h"
-#include "error.h"
+#include "fatal.h"
 #include "fileops.h"
 #include "pathnames.h"
 #include "sudo_plugin.h"
 #include "sudo_conf.h"
 #include "sudo_debug.h"
+#include "sudo_util.h"
 #include "secure_path.h"
-
-#define DEFAULT_TEXT_DOMAIN	"sudo"
-#include "gettext.h"
 
 #ifdef __TANDEM
 # define ROOT_UID	65535
 #else
 # define ROOT_UID	0
 #endif
-
-extern bool atobool(const char *str); /* atobool.c */
 
 struct sudo_conf_table {
     const char *name;
@@ -87,6 +86,7 @@ static void set_variable(const char *entry, const char *conf_file);
 static void set_var_disable_coredump(const char *entry, const char *conf_file);
 static void set_var_group_source(const char *entry, const char *conf_file);
 static void set_var_max_groups(const char *entry, const char *conf_file);
+static void set_var_probe_interfaces(const char *entry, const char *conf_file);
 
 static unsigned int conf_lineno;
 
@@ -102,21 +102,25 @@ static struct sudo_conf_table sudo_conf_table_vars[] = {
     { "disable_coredump", sizeof("disable_coredump") - 1, set_var_disable_coredump },
     { "group_source", sizeof("group_source") - 1, set_var_group_source },
     { "max_groups", sizeof("max_groups") - 1, set_var_max_groups },
+    { "probe_interfaces", sizeof("probe_interfaces") - 1, set_var_probe_interfaces },
     { NULL }
 };
 
 static struct sudo_conf_data {
     bool disable_coredump;
+    bool probe_interfaces;
     int group_source;
     int max_groups;
     const char *debug_flags;
-    struct sudo_conf_paths paths[4];
     struct plugin_info_list plugins;
+    struct sudo_conf_paths paths[5];
 } sudo_conf_data = {
+    true,
     true,
     GROUP_SOURCE_ADAPTIVE,
     -1,
     NULL,
+    TAILQ_HEAD_INITIALIZER(sudo_conf_data.plugins),
     {
 #define SUDO_CONF_ASKPASS_IDX	0
 	{ "askpass", sizeof("askpass") - 1, _PATH_SUDO_ASKPASS },
@@ -125,6 +129,10 @@ static struct sudo_conf_data {
 #ifdef _PATH_SUDO_NOEXEC
 #define SUDO_CONF_NOEXEC_IDX	2
 	{ "noexec", sizeof("noexec") - 1, _PATH_SUDO_NOEXEC },
+#endif
+#ifdef _PATH_SUDO_PLUGIN_DIR
+#define SUDO_CONF_PLUGIN_IDX	3
+	{ "plugin", sizeof("plugin") - 1, _PATH_SUDO_PLUGIN_DIR },
 #endif
 	{ NULL }
     }
@@ -169,7 +177,7 @@ set_var_group_source(const char *entry, const char *conf_file)
     } else if (strcasecmp(entry, "dynamic") == 0) {
 	sudo_conf_data.group_source = GROUP_SOURCE_DYNAMIC;
     } else {
-	warningx(_("unsupported group source `%s' in %s, line %d"), entry,
+	warningx(U_("unsupported group source `%s' in %s, line %d"), entry,
 	    conf_file, conf_lineno);
     }
 }
@@ -177,17 +185,24 @@ set_var_group_source(const char *entry, const char *conf_file)
 static void
 set_var_max_groups(const char *entry, const char *conf_file)
 {
-    long lval;
-    char *ep;
+    int max_groups;
 
-    lval = strtol(entry, &ep, 10);
-    if (*entry == '\0' || *ep != '\0' || lval < 0 || lval > INT_MAX ||
-	(errno == ERANGE && lval == LONG_MAX)) {
-	warningx(_("invalid max groups `%s' in %s, line %d"), entry,
-		    conf_file, conf_lineno);
+    max_groups = strtonum(entry, 1, INT_MAX, NULL);
+    if (max_groups > 0) {
+	sudo_conf_data.max_groups = max_groups;
     } else {
-	sudo_conf_data.max_groups = (int)lval;
+	warningx(U_("invalid max groups `%s' in %s, line %d"), entry,
+	    conf_file, conf_lineno);
     }
+}
+
+static void
+set_var_probe_interfaces(const char *entry, const char *conf_file)
+{
+    int val = atobool(entry);
+
+    if (val != -1)
+	sudo_conf_data.probe_interfaces = val;
 }
 
 /*
@@ -298,10 +313,8 @@ set_plugin(const char *entry, const char *conf_file)
     info->symbol_name = estrndup(name, namelen);
     info->path = estrndup(path, pathlen);
     info->options = options;
-    info->prev = info;
-    /* info->next = NULL; */
     info->lineno = conf_lineno;
-    tq_append(&sudo_conf_data.plugins, info);
+    TAILQ_INSERT_TAIL(&sudo_conf_data.plugins, info, entries);
 }
 
 const char *
@@ -321,6 +334,14 @@ const char *
 sudo_conf_noexec_path(void)
 {
     return sudo_conf_data.paths[SUDO_CONF_NOEXEC_IDX].pval;
+}
+#endif
+
+#ifdef _PATH_SUDO_PLUGIN_DIR
+const char *
+sudo_conf_plugin_dir_path(void)
+{
+    return sudo_conf_data.paths[SUDO_CONF_PLUGIN_IDX].pval;
 }
 #endif
 
@@ -354,6 +375,12 @@ sudo_conf_disable_coredump(void)
     return sudo_conf_data.disable_coredump;
 }
 
+bool
+sudo_conf_probe_interfaces(void)
+{
+    return sudo_conf_data.probe_interfaces;
+}
+
 /*
  * Reads in /etc/sudo.conf and populates sudo_conf_data.
  */
@@ -379,20 +406,20 @@ sudo_conf_read(const char *conf_file)
 	    case SUDO_PATH_MISSING:
 		/* Root should always be able to read sudo.conf. */
 		if (errno != ENOENT && geteuid() == ROOT_UID)
-		    warning(_("unable to stat %s"), conf_file);
+		    warning(U_("unable to stat %s"), conf_file);
 		goto done;
 	    case SUDO_PATH_BAD_TYPE:
-		warningx(_("%s is not a regular file"), conf_file);
+		warningx(U_("%s is not a regular file"), conf_file);
 		goto done;
 	    case SUDO_PATH_WRONG_OWNER:
-		warningx(_("%s is owned by uid %u, should be %u"),
+		warningx(U_("%s is owned by uid %u, should be %u"),
 		    conf_file, (unsigned int) sb.st_uid, ROOT_UID);
 		goto done;
 	    case SUDO_PATH_WORLD_WRITABLE:
-		warningx(_("%s is world writable"), conf_file);
+		warningx(U_("%s is world writable"), conf_file);
 		goto done;
 	    case SUDO_PATH_GROUP_WRITABLE:
-		warningx(_("%s is group writable"), conf_file);
+		warningx(U_("%s is group writable"), conf_file);
 		goto done;
 	    default:
 		/* NOTREACHED */
@@ -402,7 +429,7 @@ sudo_conf_read(const char *conf_file)
 
     if ((fp = fopen(conf_file, "r")) == NULL) {
 	if (errno != ENOENT && geteuid() == ROOT_UID)
-	    warning(_("unable to open %s"), conf_file);
+	    warning(U_("unable to open %s"), conf_file);
 	goto done;
     }
 

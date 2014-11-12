@@ -46,14 +46,14 @@
 #ifdef HAVE_INTTYPES_H
 # include <inttypes.h>
 #endif
+#include <limits.h>
+
+#define DEFAULT_TEXT_DOMAIN	"sudo"
+#include "gettext.h"		/* must be included before missing.h */
 
 #include "missing.h"
 #include "alloc.h"
-#include "error.h"
-#include "errno.h"
-
-#define DEFAULT_TEXT_DOMAIN	"sudo"
-#include "gettext.h"
+#include "fatal.h"
 
 /*
  * If there is no SIZE_MAX or SIZE_T_MAX we have to assume that size_t
@@ -82,7 +82,7 @@ emalloc(size_t size)
 	fatalx_nodebug(_("internal error, tried to emalloc(0)"));
 
     if ((ptr = malloc(size)) == NULL)
-	fatalx_nodebug(NULL);
+	fatal_nodebug(NULL);
     return ptr;
 }
 
@@ -102,7 +102,7 @@ emalloc2(size_t nmemb, size_t size)
 
     size *= nmemb;
     if ((ptr = malloc(size)) == NULL)
-	fatalx_nodebug(NULL);
+	fatal_nodebug(NULL);
     return ptr;
 }
 
@@ -124,7 +124,7 @@ ecalloc(size_t nmemb, size_t size)
 	size *= nmemb;
     }
     if ((ptr = malloc(size)) == NULL)
-	fatalx_nodebug(NULL);
+	fatal_nodebug(NULL);
     memset(ptr, 0, size);
     return ptr;
 }
@@ -143,7 +143,7 @@ erealloc(void *ptr, size_t size)
 
     ptr = ptr ? realloc(ptr, size) : malloc(size);
     if (ptr == NULL)
-	fatalx_nodebug(NULL);
+	fatal_nodebug(NULL);
     return ptr;
 }
 
@@ -165,15 +165,14 @@ erealloc3(void *ptr, size_t nmemb, size_t size)
     size *= nmemb;
     ptr = ptr ? realloc(ptr, size) : malloc(size);
     if (ptr == NULL)
-	fatalx_nodebug(NULL);
+	fatal_nodebug(NULL);
     return ptr;
 }
 
-#ifdef notyet
 /*
  * erecalloc() realloc(3)s nmemb * msize bytes and exits with an error
  * if overflow would occur or if the system malloc(3)/realloc(3) fails.
- * On success, the new space is zero-filled.  You can call ereallocz()
+ * On success, the new space is zero-filled.  You can call erealloc()
  * with a NULL pointer even if the system realloc(3) does not support this.
  */
 void *
@@ -189,14 +188,13 @@ erecalloc(void *ptr, size_t onmemb, size_t nmemb, size_t msize)
     size = nmemb * msize;
     ptr = ptr ? realloc(ptr, size) : malloc(size);
     if (ptr == NULL)
-	fatalx_nodebug(NULL);
+	fatal_nodebug(NULL);
     if (nmemb > onmemb) {
 	size = (nmemb - onmemb) * msize;
 	memset((char *)ptr + (onmemb * msize), 0, size);
     }
     return ptr;
 }
-#endif
 
 /*
  * estrdup() is like strdup(3) except that it exits with an error if
@@ -254,7 +252,7 @@ easprintf(char **ret, const char *fmt, ...)
     va_end(ap);
 
     if (len == -1)
-	fatalx_nodebug(NULL);
+	fatal_nodebug(NULL);
     return len;
 }
 
@@ -268,6 +266,6 @@ evasprintf(char **ret, const char *format, va_list args)
     int len;
 
     if ((len = vasprintf(ret, format, args)) == -1)
-	fatalx_nodebug(NULL);
+	fatal_nodebug(NULL);
     return len;
 }

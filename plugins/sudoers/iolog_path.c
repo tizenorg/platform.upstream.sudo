@@ -194,7 +194,7 @@ expand_iolog_path(const char *prefix, const char *dir, const char *file,
 	    break;
 	case 1:
 	    /* Trim trailing slashes from dir component. */
-	    while (dst - path - 1 > prelen && dst[-1] == '/')
+	    while (dst > path + prelen + 1 && dst[-1] == '/')
 		dst--;
 	    /* The NUL will be replaced with a '/' at the end. */
 	    if (dst + 1 >= pathend)
@@ -250,12 +250,13 @@ expand_iolog_path(const char *prefix, const char *dir, const char *file,
 	    struct tm *timeptr;
 
 	    time(&now);
-	    timeptr = localtime(&now);
+	    if ((timeptr = localtime(&now)) == NULL)
+		goto bad;
 
 	    /* Use sudoers locale for strftime() */
 	    sudoers_setlocale(SUDOERS_LOCALE_SUDOERS, &oldlocale);
 
-	    /* We only calls strftime() on the current part of the buffer. */
+	    /* We only call strftime() on the current part of the buffer. */
 	    tmpbuf[sizeof(tmpbuf) - 1] = '\0';
 	    len = strftime(tmpbuf, sizeof(tmpbuf), dst0, timeptr);
 

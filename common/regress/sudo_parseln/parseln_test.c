@@ -43,6 +43,9 @@
 
 #include "missing.h"
 #include "fileops.h"
+#include "sudo_util.h"
+
+__dso_public int main(int argc, char *argv[]);
 
 /*
  * Simple test driver for sudo_parseln().
@@ -57,22 +60,10 @@ main(int argc, char *argv[])
     size_t linesize = 0;
     char *line = NULL;
 
+    initprogname(argc > 0 ? argv[0] : "parseln_test");
+
     while (sudo_parseln(&line, &linesize, &lineno, stdin) != -1)
 	printf("%6u\t%s\n", lineno, line);
     free(line);
     exit(0);
-}
-
-/* STUB */
-void
-warning_set_locale(void)
-{
-    return;
-}
-
-/* STUB */
-void
-warning_restore_locale(void)
-{
-    return;
 }

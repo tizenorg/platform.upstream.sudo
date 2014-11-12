@@ -55,7 +55,7 @@ __dso_public int main(int argc, char *argv[]);
 static void
 usage(void)
 {
-    fprintf(stderr, "usage: check_iolog_path datafile\n");
+    fprintf(stderr, "usage: %s datafile\n", getprogname());
     exit(1);
 }
 
@@ -74,6 +74,8 @@ do_check(char *dir_in, char *file_in, char *tdir_out, char *tfile_out)
      */
     time(&now);
     timeptr = localtime(&now);
+    if (timeptr == NULL)
+	fatalx("localtime returned NULL");
     strftime(dir_out, sizeof(dir_out), tdir_out, timeptr);
     strftime(file_out, sizeof(file_out), tfile_out, timeptr);
 
@@ -102,13 +104,12 @@ main(int argc, char *argv[])
     char line[2048];
     char *file_in = NULL, *file_out = NULL;
     char *dir_in = NULL, *dir_out = NULL;
+    const char *errstr;
     int state = 0;
     int errors = 0;
     int tests = 0;
 
-#if !defined(HAVE_GETPROGNAME) && !defined(HAVE___PROGNAME)
-    setprogname(argc > 0 ? argv[0] : "check_iolog_path");
-#endif
+    initprogname(argc > 0 ? argv[0] : "check_iolog_path");
 
     if (argc != 2)
 	usage();
@@ -151,7 +152,9 @@ main(int argc, char *argv[])
 	    user_name = strdup(line);
 	    break;
 	case 2:
-	    user_gid = atoi(line);
+	    user_gid = (gid_t)atoid(line, NULL, NULL, &errstr);
+	    if (errstr != NULL)
+		fatalx("group ID %s: %s", line, errstr);
 	    break;
 	case 3:
 	    if (runas_pw->pw_name != NULL)
@@ -159,7 +162,9 @@ main(int argc, char *argv[])
 	    runas_pw->pw_name = strdup(line);
 	    break;
 	case 4:
-	    runas_pw->pw_gid = atoi(line);
+	    runas_pw->pw_gid = (gid_t)atoid(line, NULL, NULL, &errstr);
+	    if (errstr != NULL)
+		fatalx("group ID %s: %s", line, errstr);
 	    break;
 	case 5:
 	    user_shost = strdup(line);

@@ -59,10 +59,6 @@
 
 #include "sudoers.h"
 
-#ifndef va_copy
-# define va_copy(d, s) memcpy(&(d), &(s), sizeof(d));
-#endif
-
 /* Special message for log_warning() so we know to use ngettext() */
 #define INCORRECT_PASSWORD_ATTEMPT	((char *)0x01)
 
@@ -180,7 +176,6 @@ do_logfile(char *msg)
     char *full_line;
     size_t len;
     mode_t oldmask;
-    time_t now;
     int oldlocale;
     FILE *fp;
     debug_decl(do_logfile, SUDO_DEBUG_LOGGING)
@@ -197,22 +192,25 @@ do_logfile(char *msg)
 	send_mail(_("unable to lock log file: %s: %s"),
 	    def_logfile, strerror(errno));
     } else {
-	time(&now);
-	if (def_loglinelen < sizeof(LOG_INDENT)) {
+	const char *timestr = get_timestr(time(NULL), def_log_year);
+	if (timestr == NULL)
+	    timestr = "invalid date";
+	if ((size_t)def_loglinelen < sizeof(LOG_INDENT)) {
 	    /* Don't pretty-print long log file lines (hard to grep) */
-	    if (def_log_host)
+	    if (def_log_host) {
 		(void) fprintf(fp, "%s : %s : HOST=%s : %s\n",
-		    get_timestr(now, def_log_year), user_name, user_shost, msg);
-	    else
-		(void) fprintf(fp, "%s : %s : %s\n",
-		    get_timestr(now, def_log_year), user_name, msg);
+		    timestr, user_name, user_srunhost, msg);
+	    } else {
+		(void) fprintf(fp, "%s : %s : %s\n", timestr, user_name, msg);
+	    }
 	} else {
-	    if (def_log_host)
+	    if (def_log_host) {
 		len = easprintf(&full_line, "%s : %s : HOST=%s : %s",
-		    get_timestr(now, def_log_year), user_name, user_shost, msg);
-	    else
+		    timestr, user_name, user_srunhost, msg);
+	    } else {
 		len = easprintf(&full_line, "%s : %s : %s",
-		    get_timestr(now, def_log_year), user_name, msg);
+		    timestr, user_name, msg);
+	    }
 
 	    /*
 	     * Print out full_line with word wrap around def_loglinelen chars.
@@ -290,10 +288,10 @@ log_denial(int status, bool inform_user)
 	} else if (ISSET(status, FLAG_NO_HOST)) {
 	    sudo_printf(SUDO_CONV_ERROR_MSG, _("%s is not allowed to run sudo "
 		"on %s.  This incident will be reported.\n"),
-		user_name, user_shost);
+		user_name, user_srunhost);
 	} else if (ISSET(status, FLAG_NO_CHECK)) {
 	    sudo_printf(SUDO_CONV_ERROR_MSG, _("Sorry, user %s may not run "
-		"sudo on %s.\n"), user_name, user_shost);
+		"sudo on %s.\n"), user_name, user_srunhost);
 	} else {
 	    sudo_printf(SUDO_CONV_ERROR_MSG, _("Sorry, user %s is not allowed "
 		"to execute '%s%s%s' as %s%s%s on %s.\n"),
@@ -332,9 +330,9 @@ log_failure(int status, int flags)
 	 * their path to just contain a single dir.
 	 */
 	if (flags == NOT_FOUND)
-	    warningx(_("%s: command not found"), user_cmnd);
+	    warningx(U_("%s: command not found"), user_cmnd);
 	else if (flags == NOT_FOUND_DOT)
-	    warningx(_("ignoring `%s' found in '.'\nUse `sudo ./%s' if this is the `%s' you wish to run."), user_cmnd, user_cmnd, user_cmnd);
+	    warningx(U_("ignoring `%s' found in '.'\nUse `sudo ./%s' if this is the `%s' you wish to run."), user_cmnd, user_cmnd, user_cmnd);
     }
 
     debug_return;
@@ -344,7 +342,7 @@ log_failure(int status, int flags)
  * Log and audit that user was not able to authenticate themselves.
  */
 void
-log_auth_failure(int status, int tries)
+log_auth_failure(int status, unsigned int tries)
 {
     int flags = NO_MAIL;
     debug_decl(log_auth_failure, SUDO_DEBUG_LOGGING)
@@ -439,11 +437,20 @@ vlog_warning(int flags, const char *fmt, va_list ap)
 
     /* Expand printf-style format + args (with a special case). */
     if (fmt == INCORRECT_PASSWORD_ATTEMPT) {
-	int tries = va_arg(ap, int);
-	easprintf(&message, ngettext("%d incorrect password attempt",
-	    "%d incorrect password attempts", tries), tries);
+	unsigned int tries = va_arg(ap, unsigned int);
+	easprintf(&message, ngettext("%u incorrect password attempt",
+	    "%u incorrect password attempts", tries), tries);
     } else {
 	evasprintf(&message, _(fmt), ap);
+    }
+
+    /* Log to debug file. */
+    if (USE_ERRNO) {
+	sudo_debug_printf2(NULL, NULL, 0,
+	    SUDO_DEBUG_WARN|SUDO_DEBUG_ERRNO|sudo_debug_subsys, "%s", message);
+    } else {
+	sudo_debug_printf2(NULL, NULL, 0,
+	    SUDO_DEBUG_WARN|sudo_debug_subsys, "%s", message);
     }
 
     if (ISSET(flags, MSG_ONLY)) {
@@ -482,16 +489,18 @@ vlog_warning(int flags, const char *fmt, va_list ap)
      * Tell the user (in their locale).
      */
     if (!ISSET(flags, NO_STDERR)) {
+	sudoers_setlocale(SUDOERS_LOCALE_USER, &oldlocale);
 	if (fmt == INCORRECT_PASSWORD_ATTEMPT) {
-	    int tries = va_arg(ap2, int);
-	    warningx(ngettext("%d incorrect password attempt",
-		"%d incorrect password attempts", tries), tries);
+	    unsigned int tries = va_arg(ap2, unsigned int);
+	    warningx_nodebug(ngettext("%u incorrect password attempt",
+		"%u incorrect password attempts", tries), tries);
 	} else {
 	    if (ISSET(flags, USE_ERRNO))
-		vwarning(fmt, ap2);
+		vwarning_nodebug(_(fmt), ap2);
 	    else
-		vwarningx(fmt, ap2);
+		vwarningx_nodebug(_(fmt), ap2);
 	}
+	sudoers_setlocale(oldlocale, NULL);
 	va_end(ap2);
     }
 
@@ -539,9 +548,11 @@ send_mail(const char *fmt, ...)
 {
     FILE *mail;
     char *p;
+    const char *timestr;
     int fd, pfd[2], status;
     pid_t pid, rv;
     sigaction_t sa;
+    struct stat sb;
     va_list ap;
 #ifndef NO_ROOT_MAILER
     static char *root_envp[] = {
@@ -559,11 +570,15 @@ send_mail(const char *fmt, ...)
     if (!def_mailerpath || !def_mailto)
 	debug_return;
 
+    /* Make sure the mailer exists and is a regular file. */
+    if (stat(def_mailerpath, &sb) != 0 || !S_ISREG(sb.st_mode))
+	debug_return;
+
     /* Fork and return, child will daemonize. */
     switch (pid = sudo_debug_fork()) {
 	case -1:
 	    /* Error. */
-	    fatal(_("unable to fork"));
+	    fatal(U_("unable to fork"));
 	    break;
 	case 0:
 	    /* Child. */
@@ -609,7 +624,7 @@ send_mail(const char *fmt, ...)
     closefrom(STDERR_FILENO + 1);
 
     /* Ignore SIGPIPE in case mailer exits prematurely (or is missing). */
-    zero_bytes(&sa, sizeof(sa));
+    memset(&sa, 0, sizeof(sa));
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_INTERRUPT;
     sa.sa_handler = SIG_IGN;
@@ -635,7 +650,7 @@ send_mail(const char *fmt, ...)
 	case 0:
 	    {
 		char *argv[MAX_MAILFLAGS + 1];
-		char *mpath, *mflags;
+		char *mflags, *mpath = def_mailerpath;
 		int i;
 
 		/* Child, set stdin to output side of the pipe */
@@ -652,8 +667,7 @@ send_mail(const char *fmt, ...)
 
 		/* Build up an argv based on the mailer path and flags */
 		mflags = estrdup(def_mailerflags);
-		mpath = estrdup(def_mailerpath);
-		if ((argv[0] = strrchr(mpath, ' ')))
+		if ((argv[0] = strrchr(mpath, '/')))
 		    argv[0]++;
 		else
 		    argv[0] = mpath;
@@ -714,8 +728,9 @@ send_mail(const char *fmt, ...)
 	(void) fprintf(mail, "\nContent-Type: text/plain; charset=\"%s\"\nContent-Transfer-Encoding: 8bit", nl_langinfo(CODESET));
 #endif /* HAVE_NL_LANGINFO */
 
-    (void) fprintf(mail, "\n\n%s : %s : %s : ", user_host,
-	get_timestr(time(NULL), def_log_year), user_name);
+    if ((timestr = get_timestr(time(NULL), def_log_year)) == NULL)
+	timestr = "invalid date";
+    (void) fprintf(mail, "\n\n%s : %s : %s : ", user_host, timestr, user_name);
     va_start(ap, fmt);
     (void) vfprintf(mail, fmt, ap);
     va_end(ap);
@@ -896,5 +911,5 @@ new_logline(const char *message, int serrno)
 
     debug_return_str(line);
 toobig:
-    fatalx(_("internal error: insufficient space for log line"));
+    fatalx(U_("internal error: insufficient space for log line"));
 }

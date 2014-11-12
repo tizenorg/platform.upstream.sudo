@@ -30,14 +30,15 @@
 # include "compat/stdbool.h"
 #endif /* HAVE_STDBOOL_H */
 
+#include "gettext.h"		/* must be included before missing.h */
+
 #include "missing.h"
 #include "alloc.h"
-#include "error.h"
+#include "fatal.h"
 #include "fileops.h"
-#include "list.h"
 #include "sudo_conf.h"
 #include "sudo_debug.h"
-#include "gettext.h"
+#include "sudo_util.h"
 
 #ifdef HAVE_PRIV_SET
 # include <priv.h>
@@ -74,14 +75,6 @@
 #define MODE_PRESERVE_ENV	0x00400000
 #define MODE_NONINTERACTIVE	0x00800000
 #define MODE_LONG_LIST		0x01000000
-
-/*
- * We used to use the system definition of PASS_MAX or _PASSWD_LEN,
- * but that caused problems with various alternate authentication
- * methods.  So, we just define our own and assume that it is >= the
- * system max.
- */
-#define SUDO_PASS_MAX	256
 
 /*
  * Flags for tgetpass()
@@ -130,6 +123,14 @@ struct user_details {
 #define CD_SET_UTMP		0x2000
 #define CD_EXEC_BG		0x4000
 
+struct preserved_fd {
+    TAILQ_ENTRY(preserved_fd) entries;
+    int lowfd;
+    int highfd;
+    int flags;
+};
+TAILQ_HEAD(preserved_fd_list, preserved_fd);
+
 struct command_details {
     uid_t uid;
     uid_t euid;
@@ -141,6 +142,7 @@ struct command_details {
     int ngroups;
     int closefrom;
     int flags;
+    struct preserved_fd_list preserved_fds;
     struct passwd *pw;
     GETGROUPS_T *groups;
     const char *command;
@@ -178,25 +180,9 @@ void cleanup(int);
 char *tgetpass(const char *, int, int);
 int tty_present(void);
 
-/* zero_bytes.c */
-void zero_bytes(volatile void *, size_t);
-
 /* exec.c */
 int pipe_nonblock(int fds[2]);
 int sudo_execute(struct command_details *details, struct command_status *cstat);
-
-/* term.c */
-int term_cbreak(int);
-int term_copy(int, int);
-int term_noecho(int);
-int term_raw(int, int);
-int term_restore(int, int);
-
-/* fmt_string.h */
-char *fmt_string(const char *var, const char *value);
-
-/* atobool.c */
-bool atobool(const char *str);
 
 /* parse_args.c */
 int parse_args(int argc, char **argv, int *nargc, char ***nargv,
@@ -206,15 +192,12 @@ extern int tgetpass_flags;
 /* get_pty.c */
 int get_pty(int *master, int *slave, char *name, size_t namesz, uid_t uid);
 
-/* ttysize.c */
-void get_ttysize(int *rowp, int *colp);
-
 /* sudo.c */
 bool exec_setup(struct command_details *details, const char *ptyname, int ptyfd);
 int policy_init_session(struct command_details *details);
 int run_command(struct command_details *details);
 int os_init_common(int argc, char *argv[], char *envp[]);
-extern const char *list_user, *runas_user, *runas_group;
+extern const char *list_user;
 extern struct user_details user_details;
 
 /* sudo_edit.c */
@@ -237,11 +220,6 @@ void selinux_execve(const char *path, char *const argv[], char *const envp[],
 void set_project(struct passwd *);
 int os_init_solaris(int argc, char *argv[], char *envp[]);
 
-/* aix.c */
-void aix_prep_user(char *user, const char *tty);
-void aix_restoreauthdb(void);
-void aix_setauthdb(char *user);
-
 /* hooks.c */
 /* XXX - move to sudo_plugin_int.h? */
 struct sudo_hook;
@@ -258,9 +236,6 @@ char *getenv_unhooked(const char *name);
 /* interfaces.c */
 int get_net_ifs(char **addrinfo);
 
-/* setgroups.c */
-int sudo_setgroups(int ngids, const GETGROUPS_T *gids);
-
 /* ttyname.c */
 char *get_process_ttyname(void);
 
@@ -271,5 +246,13 @@ int sudo_sigaction(int signo, struct sigaction *sa, struct sigaction *osa);
 void init_signals(void);
 void restore_signals(void);
 void save_signals(void);
+
+/* preload.c */
+void preload_static_symbols(void);
+
+/* preserve_fds.c */
+int add_preserved_fd(struct preserved_fd_list *pfds, int fd);
+void closefrom_except(int startfd, struct preserved_fd_list *pfds);
+void parse_preserved_fds(struct preserved_fd_list *pfds, const char *fdstr);
 
 #endif /* _SUDO_SUDO_H */

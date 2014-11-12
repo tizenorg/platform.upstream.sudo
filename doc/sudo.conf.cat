@@ -39,11 +39,12 @@ DDEESSCCRRIIPPTTIIOONN
      end.  Plugins are dynamically loaded based on the contents of ssuuddoo..ccoonnff.
 
      A Plugin line consists of the Plugin keyword, followed by the _s_y_m_b_o_l___n_a_m_e
-     and the _p_a_t_h to the shared object containing the plugin.  The _s_y_m_b_o_l___n_a_m_e
-     is the name of the struct policy_plugin or struct io_plugin in the plugin
-     shared object.  The _p_a_t_h may be fully qualified or relative.  If not
-     fully qualified, it is relative to the _/_u_s_r_/_l_o_c_a_l_/_l_i_b_e_x_e_c_/_s_u_d_o directory.
-     In other words:
+     and the _p_a_t_h to the dynamic shared object that contains the plugin.  The
+     _s_y_m_b_o_l___n_a_m_e is the name of the struct policy_plugin or struct io_plugin
+     symbol contained in the plugin.  The _p_a_t_h may be fully qualified or
+     relative.  If not fully qualified, it is relative to the directory
+     specified by the _p_l_u_g_i_n___d_i_r Path setting, which defaults to
+     _/_u_s_r_/_l_o_c_a_l_/_l_i_b_e_x_e_c_/_s_u_d_o.  In other words:
 
            Plugin sudoers_policy sudoers.so
 
@@ -51,17 +52,24 @@ DDEESSCCRRIIPPTTIIOONN
 
            Plugin sudoers_policy /usr/local/libexec/sudo/sudoers.so
 
+     If the plugin was compiled statically into the ssuuddoo binary instead of
+     being installed as a dynamic shared object, the _p_a_t_h should be specified
+     without a leading directory, as it does not actually exist in the file
+     system.  For example:
+
+           Plugin sudoers_policy sudoers.so
+
      Starting with ssuuddoo 1.8.5, any additional parameters after the _p_a_t_h are
      passed as arguments to the plugin's _o_p_e_n function.  For example, to
      override the compile-time default sudoers file mode:
 
            Plugin sudoers_policy sudoers.so sudoers_mode=0440
 
-     The same shared object may contain multiple plugins, each with a
-     different symbol name.  The shared object file must be owned by uid 0 and
-     only writable by its owner.  Because of ambiguities that arise from
-     composite policies, only a single policy plugin may be specified.  This
-     limitation does not apply to I/O plugins.
+     The same dynamic shared object may contain multiple plugins, each with a
+     different symbol name.  The file must be owned by uid 0 and only writable
+     by its owner.  Because of ambiguities that arise from composite policies,
+     only a single policy plugin may be specified.  This limitation does not
+     apply to I/O plugins.
 
      If no ssuuddoo..ccoonnff file is present, or if it contains no Plugin lines, the
      ssuuddooeerrss plugin will be used as the default security policy and for I/O
@@ -98,6 +106,11 @@ DDEESSCCRRIIPPTTIIOONN
                the _n_o_e_x_e_c functionality on systems that support LD_PRELOAD or
                its equivalent.  The default value is:
                _/_u_s_r_/_l_o_c_a_l_/_l_i_b_e_x_e_c_/_s_u_d_o_/_s_u_d_o___n_o_e_x_e_c_._s_o.
+
+     plugin_dir
+               The default directory to use when searching for plugins that
+               are specified without a fully qualified path name.  The default
+               value is _/_u_s_r_/_l_o_c_a_l_/_l_i_b_e_x_e_c_/_s_u_d_o.
 
      sesh      The fully-qualified path to the sseesshh binary.  This setting is
                only used when ssuuddoo is built with SELinux support.  The default
@@ -178,17 +191,32 @@ DDEESSCCRRIIPPTTIIOONN
 
      max_groups
                The maximum number of user groups to retrieve from the group
-               database.  This setting is only used when querying the group
-               database directly.  It is intended to be used on systems where
-               it is not possible to detect when the array to be populated
-               with group entries is not sufficiently large.  By default, ssuuddoo
-               will allocate four times the system's maximum number of groups
-               (see above) and retry with double that number if the group
-               database query fails.  However, some systems just return as
-               many entries as will fit and do not indicate an error when
-               there is a lack of space.
+               database.  Values less than one will be ignored.  This setting
+               is only used when querying the group database directly.  It is
+               intended to be used on systems where it is not possible to
+               detect when the array to be populated with group entries is not
+               sufficiently large.  By default, ssuuddoo will allocate four times
+               the system's maximum number of groups (see above) and retry
+               with double that number if the group database query fails.
+               However, some systems just return as many entries as will fit
+               and do not indicate an error when there is a lack of space.
 
                This setting is only available in ssuuddoo version 1.8.7 and
+               higher.
+
+     probe_interfaces
+               By default, ssuuddoo will probe the system's network interfaces and
+               pass the IP address of each enabled interface to the policy
+               plugin.  This makes it possible for the plugin to match rules
+               based on the IP address without having to query DNS.  On Linux
+               systems with a large number of virtual interfaces, this may
+               take a non-negligible amount of time.  If IP-based matching is
+               not required, network interface probing can be disabled as
+               follows:
+
+                     Set probe_interfaces false
+
+               This setting is only available in ssuuddoo version 1.8.10 and
                higher.
 
    DDeebbuugg ffllaaggss
@@ -230,6 +258,8 @@ DDEESSCCRRIIPPTTIIOONN
      _c_o_n_v        user conversation
 
      _e_d_i_t        sudoedit
+
+     _e_v_e_n_t       event subsystem
 
      _e_x_e_c        command execution
 
@@ -361,4 +391,4 @@ DDIISSCCLLAAIIMMEERR
      file distributed with ssuuddoo or http://www.sudo.ws/sudo/license.html for
      complete details.
 
-Sudo 1.8.7                      March 14, 2013                      Sudo 1.8.7
+Sudo 1.8.10                    January 22, 2014                    Sudo 1.8.10

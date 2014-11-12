@@ -79,18 +79,20 @@ static struct perm_state perm_stack[PERM_STACK_MAX];
 static int perm_stack_depth = 0;
 
 #undef ID
-#define ID(x) (state->x == ostate->x ? -1 : state->x)
+#define ID(x) (state->x == ostate->x ? (uid_t)-1 : state->x)
 #undef OID
-#define OID(x) (ostate->x == state->x ? -1 : ostate->x)
+#define OID(x) (ostate->x == state->x ? (uid_t)-1 : ostate->x)
 
 void
 rewind_perms(void)
 {
     debug_decl(rewind_perms, SUDO_DEBUG_PERMS)
 
-    while (perm_stack_depth > 1)
-	restore_perms();
-    sudo_grlist_delref(perm_stack[0].grlist);
+    if (perm_stack_depth != 0) {
+	while (perm_stack_depth > 1)
+	    restore_perms();
+	sudo_grlist_delref(perm_stack[0].grlist);
+    }
 
     debug_return;
 }
@@ -357,8 +359,10 @@ set_perms(int perm)
     perm_stack_depth++;
     debug_return_bool(1);
 bad:
-    warningx("%s: %s", _(errstr),
-	errno == EAGAIN ? _("too many processes") : strerror(errno));
+    if (errno == EAGAIN)
+	warningx(U_("%s: %s"), U_(errstr), U_("too many processes"));
+    else
+	warning("%s", U_(errstr));
     if (noexit)
 	debug_return_bool(0);
     exit(1);
@@ -694,8 +698,10 @@ set_perms(int perm)
     perm_stack_depth++;
     debug_return_bool(1);
 bad:
-    warningx("%s: %s", _(errstr),
-	errno == EAGAIN ? _("too many processes") : strerror(errno));
+    if (errno == EAGAIN)
+	warningx(U_("%s: %s"), U_(errstr), U_("too many processes"));
+    else
+	warning("%s", U_(errstr));
     if (noexit)
 	debug_return_bool(0);
     exit(1);
@@ -885,7 +891,7 @@ set_perms(int perm)
 	if (ostate->euid != ROOT_UID) {
 	    if (setreuid(-1, ROOT_UID)) {
 		snprintf(errbuf, sizeof(errbuf),
-		    "PERM_ROOT: setreuid(-1, %d)", PERM_ROOT);
+		    "PERM_ROOT: setreuid(-1, %d)", ROOT_UID);
 		goto bad;
 	    }
 	}
@@ -1051,8 +1057,10 @@ set_perms(int perm)
     perm_stack_depth++;
     debug_return_bool(1);
 bad:
-    warningx("%s: %s", _(errstr),
-	errno == EAGAIN ? _("too many processes") : strerror(errno));
+    if (errno == EAGAIN)
+	warningx(U_("%s: %s"), U_(errstr), U_("too many processes"));
+    else
+	warning("%s", U_(errstr));
     if (noexit)
 	debug_return_bool(0);
     exit(1);
@@ -1345,8 +1353,10 @@ set_perms(int perm)
     perm_stack_depth++;
     debug_return_bool(1);
 bad:
-    warningx("%s: %s", _(errstr),
-	errno == EAGAIN ? _("too many processes") : strerror(errno));
+    if (errno == EAGAIN)
+	warningx(U_("%s: %s"), U_(errstr), U_("too many processes"));
+    else
+	warning("%s", U_(errstr));
     if (noexit)
 	debug_return_bool(0);
     exit(1);
@@ -1511,8 +1521,10 @@ set_perms(int perm)
     perm_stack_depth++;
     debug_return_bool(1);
 bad:
-    warningx("%s: %s", _(errstr),
-	errno == EAGAIN ? _("too many processes") : strerror(errno));
+    if (errno == EAGAIN)
+	warningx(U_("%s: %s"), U_(errstr), U_("too many processes"));
+    else
+	warning("%s", U_(errstr));
     if (noexit)
 	debug_return_bool(0);
     exit(1);

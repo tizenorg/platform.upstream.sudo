@@ -40,7 +40,8 @@
 
 #include "missing.h"
 #include "alloc.h"
-#include "error.h"
+#include "fatal.h"
+#include "sudo_util.h"
 
 __dso_public int main(int argc, char *argv[]);
 
@@ -52,9 +53,7 @@ main(int argc, char *argv[])
     char *tty_libc, *tty_sudo;
     int rval = 0;
 
-#if !defined(HAVE_GETPROGNAME) && !defined(HAVE___PROGNAME)
-    setprogname(argc > 0 ? argv[0] : "check_ttyname");
-#endif
+    initprogname(argc > 0 ? argv[0] : "check_ttyname");
 
     /* Lookup tty name via libc. */
     if ((tty_libc = ttyname(STDIN_FILENO)) == NULL &&
@@ -67,7 +66,9 @@ main(int argc, char *argv[])
     if ((tty_sudo = get_process_ttyname()) == NULL)
 	tty_sudo = estrdup("none");
 
-    if (strcmp(tty_libc, tty_sudo) == 0) {
+    if (strcmp(tty_libc, "none") == 0) {
+	printf("%s: SKIP (%s)\n", getprogname(), tty_sudo);
+    } else if (strcmp(tty_libc, tty_sudo) == 0) {
 	printf("%s: OK (%s)\n", getprogname(), tty_sudo);
     } else {
 	printf("%s: FAIL %s (sudo) vs. %s (libc)\n", getprogname(),
