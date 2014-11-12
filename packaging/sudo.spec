@@ -1,13 +1,13 @@
 Name:           sudo
-Version:        1.8.7
+Version:        1.8.10p3
 Release:        0
 Summary:        Execute some commands as root
 License:        ISC
-Group:          System/Base
+Group:          System/Utilities
 Url:            http://www.sudo.ws/
 Source0:        http://sudo.ws/sudo/dist/%{name}-%{version}.tar.gz
 Source1:        sudo.pamd
-Source1001: 	sudo.manifest
+Source1001:     sudo.manifest
 BuildRequires:  groff
 BuildRequires:  pam-devel
 Requires(pre):  coreutils
@@ -23,7 +23,7 @@ minutes by default).
 
 %package devel
 Summary:        Header files needed for sudo plugin development
-Group:          Development/Libraries
+Group:          System/Utilities
 
 %description devel
 These header files are needed for building of sudo plugins.
@@ -51,8 +51,8 @@ export LDFLAGS="-pie"
 --with-env-editor \
 --without-secure-path \
 --with-passprompt='%%p\x27s password:' \
---with-timedir=%{_localstatedir}/lib/sudo
-make %{?_smp_mflags}
+--with-rundir=%{_localstatedir}/lib/sudo
+%__make %{?_smp_mflags}
 
 %install
 %make_install
@@ -93,5 +93,3 @@ chmod 0440 %{_sysconfdir}/sudoers
 %manifest %{name}.manifest
 %defattr(-,root,root)
 %{_includedir}/sudo_plugin.h
-
-%changelog
