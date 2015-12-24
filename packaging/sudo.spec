@@ -77,6 +77,7 @@ chmod 0440 %{_sysconfdir}/sudoers
 %files 
 %manifest %{name}.manifest
 %defattr(-,root,root)
+%license LICENSE
 %config(noreplace) %attr(0440,root,root) %{_sysconfdir}/sudoers
 %dir %{_sysconfdir}/sudoers.d
 %config %{_sysconfdir}/pam.d/sudo
