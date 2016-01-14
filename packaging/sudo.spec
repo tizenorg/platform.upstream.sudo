@@ -28,6 +28,15 @@ Group:          System/Utilities
 %description devel
 These header files are needed for building of sudo plugins.
 
+%package rpm
+Summary:        Script making possible to run RPM as root from inside build
+Group:          System/Utilities
+Requires:       sudo
+
+%description rpm
+The package will add ALL ALL = (root) NOPASSWD: /usr/bin/rpm to sudoers and
+makes possible to install packages from inside build.
+
 %prep
 %setup -q
 cp %{SOURCE1001} .
@@ -71,6 +80,8 @@ cat sudoers.lang >> %{name}.lang
 %post
 chmod 0440 %{_sysconfdir}/sudoers
 
+%post rpm
+echo 'ALL ALL = (root) NOPASSWD: /usr/bin/rpm' >> %{_sysconfdir}/sudoers
 
 %lang_package
 
@@ -93,3 +104,5 @@ chmod 0440 %{_sysconfdir}/sudoers
 %manifest %{name}.manifest
 %defattr(-,root,root)
 %{_includedir}/sudo_plugin.h
+
+%files rpm
