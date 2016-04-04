@@ -42,6 +42,9 @@ makes possible to install packages from inside build.
 cp %{SOURCE1001} .
 
 %build
+export CFLAGS+=" -fvisibility=hidden"
+  export CXXFLAGS+=" -fvisibility=hidden"
+  
 F_PIE=-fpie
 export CFLAGS="%{optflags} -Wall $F_PIE -DLDAP_DEPRECATED"
 export LDFLAGS="-pie"
