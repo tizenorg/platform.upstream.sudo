@@ -48,6 +48,8 @@ export CFLAGS+=" -fvisibility=hidden"
 F_PIE=-fpie
 export CFLAGS="%{optflags} -Wall $F_PIE -DLDAP_DEPRECATED"
 export LDFLAGS="-pie"
+export CFLAGS+=" -fvisibility=hidden"
+  export CXXFLAGS+=" -fvisibility=hidden"
 %configure \
 --libexecdir=%{_libexecdir}/sudo \
 --docdir=%{_docdir}/%{name} \
